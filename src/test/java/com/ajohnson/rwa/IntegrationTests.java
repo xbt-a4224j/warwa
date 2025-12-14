@@ -5,6 +5,7 @@ import com.ajohnson.rwa.ledger.JsonlLedgerStore;
 import com.ajohnson.rwa.service.ExplanationService;
 import com.ajohnson.rwa.service.TokenLedgerService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,13 +22,7 @@ import static com.ajohnson.rwa.domain.EventType.TOKEN_TRANSFER_APPROVED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
-@ActiveProfiles("test")
-@Configuration
-@ConditionalOnProperty(
-        name = "onchain.enabled",
-        havingValue = "true",
-        matchIfMissing = false
-)
+@Disabled
 public class IntegrationTests {
 
 

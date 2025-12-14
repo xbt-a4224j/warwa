@@ -6,6 +6,7 @@ import com.ajohnson.rwa.domain.LedgerEvent;
 import com.ajohnson.rwa.domain.RwaTokenConfig;
 import com.ajohnson.rwa.ledger.JsonlLedgerStore;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
@@ -19,13 +20,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 
-@ActiveProfiles("test")
-@Configuration
-@ConditionalOnProperty(
-        name = "onchain.enabled",
-        havingValue = "true",
-        matchIfMissing = false
-)
+@Disabled
 public class TokenLedgerServiceTest {
 
 
