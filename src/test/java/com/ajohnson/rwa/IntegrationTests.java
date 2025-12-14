@@ -6,7 +6,10 @@ import com.ajohnson.rwa.service.ExplanationService;
 import com.ajohnson.rwa.service.TokenLedgerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.util.Map;
 
@@ -18,11 +21,18 @@ import static com.ajohnson.rwa.domain.EventType.TOKEN_TRANSFER_APPROVED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
+@ActiveProfiles("test")
+@Configuration
+@ConditionalOnProperty(
+        name = "onchain.enabled",
+        havingValue = "true",
+        matchIfMissing = false
+)
 public class IntegrationTests {
 
 
     private ExplanationService explanationService;
-    private  TokenLedgerService service;
+    private TokenLedgerService service;
     private JsonlLedgerStore store;
 
     @BeforeEach
@@ -40,7 +50,6 @@ public class IntegrationTests {
 
         service = new TokenLedgerService(store, explanationService);
     }
-
 
     @Test
 	void contextLoads() {
@@ -69,13 +78,10 @@ public class IntegrationTests {
         store.append(le);
         store.append(le2);
 
-
         TokenLedgerService service = new TokenLedgerService(store, explanationService);
-
 
         assertEquals(60, service.balanceOf("PCI-A", "Alice"));
         assertEquals(40, service.balanceOf("PCI-A", "Bob"));
 
     }
-
 }
