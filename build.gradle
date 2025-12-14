@@ -19,6 +19,12 @@ repositories {
 	maven { setUrl("https://maven.vaadin.com/vaadin-addons") }
 }
 
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
 configurations {
 	developmentOnly
 	runtimeClasspath {
