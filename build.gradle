@@ -21,7 +21,7 @@ repositories {
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+		languageVersion = JavaLanguageVersion.of(17)
 	}
 }
 
@@ -39,7 +39,7 @@ tasks.named('test') {
 dependencies {
     implementation platform("org.springframework.ai:spring-ai-bom:1.1.2")
     implementation 'org.springframework.ai:spring-ai-starter-model-openai:1.1.2'
-	implementation("org.web3j:core:5.0.1")
+	implementation("org.web3j:core:4.10.3")
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation('com.vaadin:vaadin-spring-boot-starter')
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
