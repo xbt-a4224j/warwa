@@ -1,9 +1,14 @@
 package com.ajohnson.rwa.service;
 
+import com.ajohnson.rwa.domain.EventReason;
 import com.ajohnson.rwa.domain.EventType;
+import com.ajohnson.rwa.domain.ClientProfile;
 import com.ajohnson.rwa.domain.LedgerEvent;
+import com.ajohnson.rwa.domain.RwaTokenConfig;
+import com.ajohnson.rwa.service.ExplanationService;
 import com.ajohnson.rwa.ledger.JsonlLedgerStore;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,14 +16,41 @@ import java.util.Map;
 public class TokenLedgerService {
 
     private final JsonlLedgerStore ledgerStore;
+    private final ExplanationService explanationService;
 
-    // balances[tokenId][clientId] = amount
+    /**
+     * balances[tokenId][clientId] = amount
+     */
     private final Map<String, Map<String, Integer>> balances = new HashMap<>();
 
-    public TokenLedgerService(JsonlLedgerStore ledgerStore) {
+    /**
+     * Reference data (in-memory for prototype scope)
+     */
+    private final Map<String, RwaTokenConfig> tokenConfigById = new HashMap<>();
+    private final Map<String, ClientProfile> clientById = new HashMap<>();
+
+    public TokenLedgerService(JsonlLedgerStore ledgerStore,
+                              ExplanationService explanationService) {
         this.ledgerStore = ledgerStore;
+        this.explanationService = explanationService;
         replay();
     }
+
+    // ------------------------------------------------------------------
+    // Reference data registration (bootstrap / admin only)
+    // ------------------------------------------------------------------
+
+    public void upsertTokenConfig(RwaTokenConfig config) {
+        tokenConfigById.put(config.getTokenId(), config);
+    }
+
+    public void upsertClient(ClientProfile client) {
+        clientById.put(client.getClientId(), client);
+    }
+
+    // ------------------------------------------------------------------
+    // Replay + state derivation
+    // ------------------------------------------------------------------
 
     private void replay() {
         List<LedgerEvent> events = ledgerStore.readAll();
@@ -30,7 +62,7 @@ public class TokenLedgerService {
             case TOKENS_MINTED -> applyMint(event);
             case TOKEN_TRANSFER_APPROVED -> applyTransfer(event);
             default -> {
-                // ignore other events for balance derivation
+                // Requests, rejections, RWA_CREATED do not affect balances
             }
         }
     }
@@ -58,7 +90,9 @@ public class TokenLedgerService {
         tokenBalances.merge(toClient, amount, Integer::sum);
     }
 
-    // -------- Public read APIs --------
+    // ------------------------------------------------------------------
+    // Public read APIs
+    // ------------------------------------------------------------------
 
     public int balanceOf(String tokenId, String clientId) {
         return balances
@@ -67,12 +101,141 @@ public class TokenLedgerService {
     }
 
     public Map<String, Integer> balancesForToken(String tokenId) {
-        return Map.copyOf(
-                balances.getOrDefault(tokenId, Map.of())
-        );
+        return Map.copyOf(balances.getOrDefault(tokenId, Map.of()));
     }
 
     public Map<String, Map<String, Integer>> snapshot() {
         return Map.copyOf(balances);
+    }
+
+    // ------------------------------------------------------------------
+    // Transfer flow (deterministic, auditable)
+    // ------------------------------------------------------------------
+
+    /**
+     * Core transfer request.
+     * Emits REQUESTED + APPROVED or REJECTED events.
+     */
+    public LedgerEvent requestTransfer(
+            String tokenId,
+            String fromClient,
+            String toClient,
+            int amount
+    ) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("amount must be > 0");
+        }
+
+        // 1) Record intent (audit trail)
+        LedgerEvent requested = new LedgerEvent(
+                EventType.TOKEN_TRANSFER_REQUESTED,
+                tokenId,
+                Map.of(
+                        "fromClient", fromClient,
+                        "toClient", toClient,
+                        "amount", amount
+                )
+        );
+        ledgerStore.append(requested);
+
+        // 2) Evaluate rules in locked order
+        EventReason rejection = evaluateRules(
+                tokenId, fromClient, toClient, amount, Instant.now()
+        );
+
+        if (rejection != null) {
+            LedgerEvent rejected = new LedgerEvent(
+                    EventType.TOKEN_TRANSFER_REJECTED,
+                    tokenId,
+                    Map.of(
+                            "fromClient", fromClient,
+                            "toClient", toClient,
+                            "amount", amount,
+                            "reason", rejection.name()
+                    )
+            );
+            ledgerStore.append(rejected);
+            return rejected;
+        }
+
+        // 3) Approve and apply
+        LedgerEvent approved = new LedgerEvent(
+                EventType.TOKEN_TRANSFER_APPROVED,
+                tokenId,
+                Map.of(
+                        "fromClient", fromClient,
+                        "toClient", toClient,
+                        "amount", amount
+                )
+        );
+        ledgerStore.append(approved);
+        apply(approved); // immediate in-memory update
+
+        return approved;
+    }
+
+    /**
+     * Convenience wrapper used by UI / API:
+     * executes transfer and returns advisor-friendly explanation.
+     */
+    public String requestTransferWithExplanation(
+            String tokenId,
+            String fromClient,
+            String toClient,
+            int amount
+    ) {
+        LedgerEvent outcome =
+                requestTransfer(tokenId, fromClient, toClient, amount);
+
+        List<LedgerEvent> context =
+                ledgerStore.readByToken(tokenId);
+
+        return explanationService.explainTransferOutcome(
+                tokenId,
+                outcome,
+                context
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // Rule evaluation (wealth-management semantics)
+    // ------------------------------------------------------------------
+
+    private EventReason evaluateRules(
+            String tokenId,
+            String fromClient,
+            String toClient,
+            int amount,
+            Instant now
+    ) {
+        // Rule 1: Lockup window
+        RwaTokenConfig cfg = tokenConfigById.get(tokenId);
+        if (cfg != null
+                && cfg.getLockupUntil() != null
+                && now.isBefore(cfg.getLockupUntil())) {
+            return EventReason.LOCKUP_NOT_EXPIRED;
+        }
+
+        // Rule 2: Accreditation
+        if (cfg != null && cfg.isAccreditedOnly()) {
+            ClientProfile from = clientById.get(fromClient);
+            ClientProfile to = clientById.get(toClient);
+
+            // Safe default: missing profile = not accredited
+            if (from == null || !from.isAccredited()) {
+                return EventReason.NOT_ACCREDITED;
+            }
+            if (to == null || !to.isAccredited()) {
+                return EventReason.NOT_ACCREDITED;
+            }
+        }
+
+        // Rule 3: Sufficient balance
+        int fromBalance = balanceOf(tokenId, fromClient);
+        if (fromBalance < amount) {
+            return EventReason.INSUFFICIENT_BALANCE;
+        }
+
+        return null;
     }
 }

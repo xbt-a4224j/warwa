@@ -45,6 +45,12 @@ public class JsonlLedgerStore {
         }
     }
 
+    public List<LedgerEvent> readByToken(String tokenId) {
+        return readAll().stream()
+                .filter(e -> tokenId.equals(e.getTokenId()))
+                .toList();
+    }
+
     public List<LedgerEvent> readAll() {
         List<LedgerEvent> events = new ArrayList<>();
 

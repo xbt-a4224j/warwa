@@ -19,6 +19,15 @@ public class LedgerEvent {
     private Map<String, Object> data = new HashMap<>();
 
     public LedgerEvent(EventType type) {
+        this.eventId = UUID.randomUUID();
         this.type = type;
+    }
+
+
+    public LedgerEvent(EventType eventType, String tokenId, Map<String, Object> data) {
+        this.eventId = UUID.randomUUID();
+        this.type = eventType;
+        this.tokenId = tokenId;
+        this.data = data;
     }
 }

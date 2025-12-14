@@ -46,4 +46,5 @@ src/main/frontend/generated
 /.idea
 *.iml
 /data/ledger.jsonl
+/data/**
 
