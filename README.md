@@ -1,5 +1,8 @@
 # warwa — Tokenized RWA client e-advisor
 
+
+
+
 This repo is a small, internal-style prototype modeling tokenized real-world assets in a wealth management context.
 
 It implements an append-only ledger for fund units, rule-based transfers such as lockups and balance checks, and lightweight explainability for rejected actions. A separate read-only view looks up live Ethereum balances and ERC-20 metadata for reference and reconciliation.

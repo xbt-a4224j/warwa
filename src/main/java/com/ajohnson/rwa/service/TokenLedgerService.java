@@ -9,9 +9,7 @@ import com.ajohnson.rwa.service.ExplanationService;
 import com.ajohnson.rwa.ledger.JsonlLedgerStore;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TokenLedgerService {
 
@@ -101,7 +99,9 @@ public class TokenLedgerService {
     }
 
     public Map<String, Integer> balancesForToken(String tokenId) {
-        return Map.copyOf(balances.getOrDefault(tokenId, Map.of()));
+        return Map.copyOf(
+                balances.getOrDefault(tokenId, Map.of())
+        );
     }
 
     public Map<String, Map<String, Integer>> snapshot() {
@@ -197,9 +197,28 @@ public class TokenLedgerService {
         );
     }
 
-    // ------------------------------------------------------------------
-    // Rule evaluation (wealth-management semantics)
-    // ------------------------------------------------------------------
+    public void mintToAll(String tokenId, int amount) {
+
+        Set<String> clients = balancesForToken(tokenId).keySet();
+
+        for (String client : clients) {
+            LedgerEvent e = new LedgerEvent();
+            e.setEventId(UUID.randomUUID());
+            e.setTimestamp(Instant.now());
+            e.setType(EventType.TOKENS_MINTED);
+            e.setTokenId(tokenId);
+
+            e.getData().put("toClient", client);
+            e.getData().put("amount", amount);
+
+            ledgerStore.append(e);
+            balances
+                    .computeIfAbsent(tokenId, k -> new HashMap<>())
+                    .merge(client, amount, Integer::sum);
+
+        }
+    }
+
 
     private EventReason evaluateRules(
             String tokenId,

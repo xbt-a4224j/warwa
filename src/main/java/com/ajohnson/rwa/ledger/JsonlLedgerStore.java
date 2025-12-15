@@ -2,6 +2,9 @@ package com.ajohnson.rwa.ledger;
 
 import com.ajohnson.rwa.domain.LedgerEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -9,10 +12,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 public class JsonlLedgerStore {
 
     private final Path ledgerPath;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     public JsonlLedgerStore(String filePath) {
         this.ledgerPath = Path.of(filePath);
@@ -41,6 +47,7 @@ public class JsonlLedgerStore {
             writer.flush();
 
         } catch (IOException e) {
+            log.error("error",e);
             throw new RuntimeException("Failed to append ledger event", e);
         }
     }

@@ -39,15 +39,18 @@ public class MainView extends VerticalLayout {
         add(grid);
         add(buildTransferForm());
         add(explanationArea);
+        add(buildMintForm());
     }
 
     // ------------------------------------------------------------------
 
     private void configureGrid() {
+        grid.addColumn(BalanceRow::token).setHeader("Token");
         grid.addColumn(BalanceRow::client).setHeader("Client");
         grid.addColumn(BalanceRow::balance).setHeader("Balance");
         grid.setAllRowsVisible(true);
     }
+
 
     private void refreshGrid() {
         Map<String, Integer> balances =
@@ -55,7 +58,7 @@ public class MainView extends VerticalLayout {
 
         grid.setItems(
                 balances.entrySet().stream()
-                        .map(e -> new BalanceRow(e.getKey(), e.getValue()))
+                        .map(e -> new BalanceRow(TOKEN_ID, e.getKey(), e.getValue()))
                         .toList()
         );
     }
@@ -96,7 +99,29 @@ public class MainView extends VerticalLayout {
         return form;
     }
 
+    private FormLayout buildMintForm() {
+        IntegerField amount = new IntegerField("Mint Amount (per client)");
+        Button mint = new Button("Simulate Mint");
+
+        mint.addClickListener(e -> {
+            try {
+                ledgerService.mintToAll(
+                        TOKEN_ID,
+                        amount.getValue()
+                );
+                refreshGrid();
+
+            } catch (Exception ex) {
+                Notification.show(ex.getMessage(), 3_000, Notification.Position.MIDDLE);
+            }
+        });
+
+        FormLayout form = new FormLayout(amount, mint);
+        form.setColspan(mint, 2);
+        return form;
+    }
+
     // ------------------------------------------------------------------
 
-    record BalanceRow(String client, Integer balance) {}
+    record BalanceRow(String token, String client, Integer balance) {}
 }
