@@ -2,6 +2,11 @@
 
 
 
+<img width="1134" height="845" alt="Screenshot 2025-12-16 at 11 36 22 PM" src="https://github.com/user-attachments/assets/54f068cc-08de-4cd9-a24b-8f46f1cddb24" />
+<img width="779" height="639" alt="Screenshot 2025-12-16 at 11 42 44 PM" src="https://github.com/user-attachments/assets/1563b32c-c52e-45e1-89c9-96d5fd18374c" />
+
+
+
 This repo is a small, internal-style prototype modeling tokenized real-world assets in a wealth management context.
 
 It implements an append-only ledger for fund units, rule-based transfers such as lockups and balance checks, and lightweight explainability for rejected actions. A separate read-only view looks up live Ethereum balances and ERC-20 metadata for reference and reconciliation.
